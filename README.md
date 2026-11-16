@@ -48,7 +48,8 @@ Sortable and filterable (search, category, chain, watchlist-only), a detail view
 every protocol with the model's full breakdown and its farm plan, and a live-token view
 whose market-cap-to-TVL ratios are the calibration the board is priced from. The page
 recomputes each row's implied value from the snapshot figures and checks it against the
-number `board.json` carries.
+number `board.json` carries. Export CSV and Export JSON download exactly the rows the
+viewer has filtered and sorted, so the ranking can be taken into a spreadsheet.
 
 ## Run it
 

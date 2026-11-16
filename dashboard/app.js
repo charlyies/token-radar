@@ -155,6 +155,39 @@
     });
   }
 
+  // Export the board exactly as the viewer has filtered and sorted it, so a farmer can
+  // take the ranking into a spreadsheet instead of retyping it. CSV keeps one row per
+  // protocol with the model's own numbers; JSON keeps the full row objects. Both files are
+  // built and downloaded in the browser, with no network call.
+  function csvEscape(cell) {
+    var text = cell === null || cell === undefined ? '' : String(cell);
+    return /[",\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+  }
+  function boardCsv(list) {
+    var head = ['rank', 'name', 'slug', 'category', 'chains', 'tvl_usd', 'change_7d', 'age_days', 'category_multiple', 'implied_value_usd', 'watchlist'];
+    var lines = [head.join(',')];
+    list.forEach(function (r) {
+      lines.push([r.rank, r.name, r.slug, r.category || 'Other', (r.chains || []).join(';'), r.tvl_usd, r.change_7d === null ? '' : r.change_7d, r.age_days === null ? '' : r.age_days, r.category_multiple, r.implied_value_usd, r.is_watchlist ? 'yes' : 'no'].map(csvEscape).join(','));
+    });
+    return lines.join('\r\n') + '\r\n';
+  }
+  function downloadText(filename, text, mime) {
+    var blob = new Blob([text], { type: mime });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+  function exportBoard(kind) {
+    var list = sortedRows(rows());
+    if (kind === 'json') downloadText('token-radar-board.json', JSON.stringify(list, null, 2) + '\n', 'application/json');
+    else downloadText('token-radar-board.csv', boardCsv(list), 'text/csv');
+  }
+
   function header() {
     return el('header', { class: 'top' },
       el('div', { class: 'brand' }, el('span', { class: 'mark' }), el('span', { class: 'brand-name', text: 'Token Radar' })),
@@ -206,6 +239,10 @@
       el('div', { class: 'field' }, el('label', { for: 'chain', text: 'Chain' }), chainSelect),
       el('div', { class: 'field' }, el('label', { text: 'Coverage' }), wl),
       el('div', { class: 'field' }, el('span', { class: 'sub', text: 'Token status' }), el('div', { class: 'tabs' }, pre, live)),
+      el('div', { class: 'field' }, el('span', { class: 'sub', text: 'Take it with you' }), el('div', { class: 'tabs' },
+        el('button', { type: 'button', text: 'Export CSV', onclick: function () { exportBoard('csv'); } }),
+        el('button', { type: 'button', text: 'Export JSON', onclick: function () { exportBoard('json'); } })
+      )),
       el('span', { class: 'count', text: state.tab === 'pre-token' ? rows().length + ' rows shown' : DATA.live.length + ' live-token protocols' })
     );
   }
