@@ -3,13 +3,114 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Token Radar: pre-token protocols ranked by implied value</title>
-<link rel="stylesheet" href="app.css">
+<title>Token Radar — the pre-token launch board</title>
+<link rel="stylesheet" href="style.css">
+<script src="../data.js"></script>
+<script src="main.js" defer></script>
 </head>
 <body>
-<a class="skip" href="#board">Skip to the board</a>
-<main id="board" tabindex="-1" aria-busy="true"></main>
-<script src="../data.js"></script>
-<script src="app.js"></script>
+<header class="top">
+  <div class="top-in">
+    <div>
+      <h1>Token Radar</h1>
+      <p class="sub">Which pre-token protocols would a launch be worth, and what farming one costs. One sealed snapshot, one fitted curve, every row priced in dollars.</p>
+    </div>
+    <div class="snap">
+      <div><span>Snapshot</span><strong>{{AS_OF}}</strong></div>
+      <div><span>Source</span><strong>DefiLlama</strong></div>
+      <div><span>Board</span><strong>{{BOARD_SIZE}} protocols</strong></div>
+      <div><span>Watchlist</span><strong>{{WATCHLIST_SIZE}} slugs</strong></div>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button id="tab-board" role="tab" aria-selected="true" data-tab="board">Board</button>
+    <button id="tab-live" role="tab" aria-selected="false" data-tab="live">Live tokens</button>
+    <button id="tab-how" role="tab" aria-selected="false" data-tab="how">How it works</button>
+  </nav>
+</header>
+
+<main>
+  <section id="panel-board" role="tabpanel" aria-labelledby="tab-board">
+    <div class="chips" id="chips"></div>
+
+    <div class="grid2">
+      <article class="card" id="fit-card">
+        <h2>The size curve</h2>
+        <p class="fit-line">{{FIT_EQUATION}}</p>
+        <p class="fit-stats">{{FIT_STATS}}</p>
+        <div id="scatter" role="img" aria-label="Scatter of the traded tokens against the fitted curve"></div>
+        <p class="note">Each dot is a protocol whose token already trades, plotted at its TVL and market cap; the line is the curve fitted through them. A dot far above the line is a token the market prices above its size; a dot far below is priced below it. The curve is the market's own size curve, and it is the only thing that sets a row's value.</p>
+      </article>
+      <article class="card" id="spot-card">
+        <h2>Top 10 by implied launch value</h2>
+        <ol class="spot" id="spotlight"></ol>
+        <p class="note">{{TOP5}}</p>
+        <p class="note">Verdicts: <b class="v-farm">FARM</b> {{VERDICTS}}. A verdict is a budgeting aid, never a promise that a token is issued.</p>
+      </article>
+    </div>
+
+    <article class="card">
+      <h2>The board</h2>
+      <div class="filters">
+        <label>Search <input id="f-search" type="search" placeholder="name or slug" autocomplete="off"></label>
+        <label>Category <select id="f-cat"><option value="">All categories</option></select></label>
+        <label>Verdict <select id="f-verdict"><option value="">All verdicts</option><option>FARM</option><option>THIN</option><option>SKIP</option></select></label>
+        <label class="chk"><input id="f-watch" type="checkbox"> Watchlist only</label>
+        <label>Min implied $ <input id="f-min" type="number" min="0" step="1000000" placeholder="0"></label>
+        <span class="count" id="row-count"></span>
+      </div>
+      <div class="tablewrap">
+        <table id="board">
+          <thead><tr>
+            <th data-sort="rank">Rank</th><th data-sort="name">Protocol</th><th data-sort="category">Category</th>
+            <th>Chains</th><th data-sort="tvl">TVL</th><th data-sort="change">7d</th>
+            <th data-sort="implied">Implied launch</th><th data-sort="verdict">Verdict</th>
+          </tr></thead>
+          <tbody id="board-body"></tbody>
+        </table>
+      </div>
+      <p class="note">Click a row for its full breakdown: the curve base, the growth and maturity dampers, the farm economics and the eight-step plan. The board is sorted by implied launch value; click a column header to sort by it instead.</p>
+    </article>
+
+    <article class="card" id="detail-card" hidden>
+      <h2 id="detail-title">Protocol detail</h2>
+      <div id="detail"></div>
+    </article>
+  </section>
+
+  <section id="panel-live" role="tabpanel" aria-labelledby="tab-live" hidden>
+    <article class="card">
+      <h2>Live tokens — the market's own values, never modelled</h2>
+      <p class="note">These protocols already have a token, so they are not ranked. Their market caps are the snapshot's own numbers, and they are the anchors the curve is fitted on. The top {{LIVE_SIZE}} by market cap are shown.</p>
+      <div class="tablewrap">
+        <table id="live">
+          <thead><tr><th>Protocol</th><th>Category</th><th>Chains</th><th>TVL</th><th>Market cap</th><th>7d</th></tr></thead>
+          <tbody id="live-body"></tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+
+  <section id="panel-how" role="tabpanel" aria-labelledby="tab-how" hidden>
+    <article class="card how">
+      <h2>How the radar works</h2>
+      <h3>The value model</h3>
+      <p>A row's implied launch value comes from one curve, fitted fresh on every snapshot from the protocols whose tokens already trade: log<sub>10</sub>(market cap) regressed on log<sub>10</sub>(TVL). The curve is the market's own size curve — a dollar of TVL in a giant protocol is worth fewer dollars of market cap than a dollar in a small one, and the slope says by how much. The same function scores every protocol, and no name is ever hardcoded.</p>
+      <p>Two dampers order near-ties. Growth: 1 + 0.30 &times; the 7-day TVL change, clamped to &minus;50%..+100%, so a hot week lifts a row by at most 30%. Maturity: 0.70 + 0.30 &times; age/1095 days, so a protocol that has run three years without a token is worth at most 30% more than a fresh listing. The curve does the ranking; the dampers only order near-ties.</p>
+      <h3>How the fit is tested</h3>
+      <p>Two out-of-sample checks run on the same traded set, and their numbers are printed on the board. A time split fits on protocols listed before 2025-01-01 and tests on the ones listed after; a 5-fold cross-validation over a seeded shuffle does the same five times over. Each reports the median and mean error as a factor: &times;3.25 means the typical held-out market cap lands within a factor of 3.25 of the curve. The old per-category median multiple scored &times;4.82 on the same time split. The error is still wide, and the board says so: an implied value is a model claim, never a price.</p>
+      <h3>What the board refuses to rank</h3>
+      <p>An exchange, a bridge, a versioned pool or a wrapped or staked product of an asset that already trades can never launch a token of its own, so ranking one first would be the radar finding nothing. The watchlist is the floor, never the ceiling: all of its slugs rank, plus every other pre-token protocol the rule allows, whatever its TVL — the board's {{EARLY_SIZE}} early rows are the radar, the watchlist is only where it starts. A protocol is called pre-token only because its record carries no token: the record is not proof. USDD is a stablecoin whose token is its product; it ranks because the watchlist requires it and its record carries no token — treat its row as the curve's reading, not a launch prediction.</p>
+      <h3>The farm economics</h3>
+      <p>Every plan is priced in dollars: gas for the setup and one weekly transaction across the hold, plus the opportunity cost of the capital at 5% a year. The expected value assumes a 5% farmer allocation of the launch, split among 2,000 farmers; both numbers are stated on every row, and the arithmetic is shown, so a reader who disagrees can redo it. Net is expected value minus plan cost: FARM when it clears $200, THIN when it clears $100, SKIP when it clears neither. Capital follows the protocol's TVL ($250 above $1B, $150 above $100M, $100 above $10M, $50 below), the hold follows its age (60 days under six months, 45 under a year, 30 beyond), and gas follows its main chain (Ethereum $8 a transaction, cheap chains $0.50, the rest $2).</p>
+      <h3>What this is not</h3>
+      <p>The bounty does not predict whether or when a token is issued. A verdict is a budgeting aid for a farmer, and a row's implied value is what the market's own size curve would pay for a protocol of that size — nothing more.</p>
+    </article>
+  </section>
+</main>
+
+<footer>
+  <p>Token Radar · model radar-3 · snapshot {{AS_OF}} · source DefiLlama · {{BOARD_SIZE}} rows, {{WATCHLIST_SIZE}} watchlist, {{EARLY_SIZE}} early, {{LIVE_SIZE}} live set aside · renders with no network.</p>
+</footer>
 </body>
 </html>

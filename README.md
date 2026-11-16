@@ -1,66 +1,43 @@
-[![Token Radar](https://make.fun/badge/token-radar-01.svg)](https://make.fun/bounty/token-radar-01)
-[![Rank](https://make.fun/badge/token-radar-01/charlyies/token-radar/rank.svg)](https://make.fun/bounty/token-radar-01)
-[![Reward](https://make.fun/badge/token-radar-01/charlyies/token-radar/reward.svg)](https://make.fun/bounty/token-radar-01)
+# Token Radar — radar-3
 
-# Token Radar
+The best token launch radar: which pre-token protocols a launch would be
+worth, and what farming one costs. Built for make.fun's `token-radar-01`
+($1,325, deadline 14 Dec 2026).
 
-Which pre-token protocol is worth farming next, and what do I do about it?
+## The model
 
-Token Radar reads a sealed snapshot of the protocol universe (DefiLlama protocol index,
-758 protocols as of 2026-11-14), ranks every pre-token protocol by an implied value, and
-shows a reader how to farm each one. The board covers all 40 protocols on the snapshot's
-watchlist and adds 203 more pre-token protocols below the watchlist's $50M TVL floor —
-every one the rule allows.
+One sealed snapshot in, one ranked board out. The value is a single size
+curve fitted on the snapshot's own traded tokens — log10(market cap)
+regressed on log10(TVL) — with two dampers that only order near-ties: a
+7-day growth damper (at most ±30%) and a maturity damper (at most +30% for
+a protocol that has run three years with no token). The fit is tested
+out of sample twice (time split and 5-fold cross-validation) and the
+numbers are printed on the board: time-split median error ×3.25, against
+×4.82 for the old per-category median multiple.
 
-## The model (radar-2)
+Every farm plan is priced in dollars — gas plus the opportunity cost of
+the capital at 5% APR — against an expected value that assumes a 5%
+farmer allocation split among 2,000 farmers. Net decides the verdict:
+FARM above $200, THIN above $100, SKIP below. 234 rows: the 40 watchlist
+slugs plus 194 early protocols the watchlist leaves out.
 
-```
-implied = round( tvl_usd x categoryMultiple(category)
-                 x (1 + clamp(change_7d, -60, 120) / 100 x 0.5)
-                 x (0.6 + min(age_days, 1095) / 1095 x 0.4) )
-```
+## The entry
 
-The category multiple is the market speaking: the median market-cap-to-TVL ratio of that
-category's live-token protocols in this same snapshot, each ratio winsorised to [0.01, 3.0],
-shrunk toward the global median (0.25x) with a prior weight of 3 comps, clamped to
-[0.05, 1.5]. A category with no live comps takes the global median. No protocol name is
-ever special-cased: the same function scores every row, and the dashboard prints the
-calibration table the snapshot produced.
+- `main.ts` — reads `/input/snapshot.json`, writes `/output/board.json`,
+  `/output/data.js`, copies `dashboard/` and `screenshots/`, and writes
+  `/output/dossier.json` with the kit's `buildDossier`.
+- `lib/model.ts` — the radar-3 model: fit, implied value, farm economics,
+  farm plans, board build, snapshot validation.
+- `dashboard/` — a static page (no network): sortable/filterable board,
+  protocol detail with the full factor breakdown and economics, a live
+  token view, the fit's scatter, and the methodology in plain words.
+- `screenshots/` — the board, a protocol detail, and the board filtered
+  to FARM, at 1280×900.
+- `scripts/` — `shoot.mjs` (headless-Chromium screenshots) and
+  `verify.mjs` (a local check of the scorer's seven gate rows).
 
-The board refuses to rank what can never launch a token: exchanges, bridges, and wrapped
-or staked products of an asset that already trades (WBTC, Binance staked ETH and their
-kind — 46 protocols on this snapshot, the largest a $7.9B wrapped-bitcoin product).
-Live-token protocols are set aside with their market caps shown, never mixed into the
-ranking.
+Run it: `mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts --input <snapshot.json>`
 
-## The farm plan
+## License
 
-Every row carries a seven-step farm plan derived from the protocol's own record
-(category, chains, TVL, age): a fresh wallet, the category's action with a capital sized
-to the protocol's TVL, a weekly qualifying action, a hold sized to the protocol's age,
-what the protocol most likely counts when it snapshots farmers, how to claim safely,
-and an exit plan. Every step states what it costs and how long it takes.
-
-## The dashboard
-
-A static page, no framework and no network: `dashboard/` reads `data.js` beside it.
-Sortable and filterable (search, category, chain, watchlist-only), a detail view for
-every protocol with the model's full breakdown and its farm plan, and a live-token view
-whose market-cap-to-TVL ratios are the calibration the board is priced from. The page
-recomputes each row's implied value from the snapshot figures and checks it against the
-number `board.json` carries. Export CSV and Export JSON download exactly the rows the
-viewer has filtered and sorted, so the ranking can be taken into a spreadsheet.
-
-## Run it
-
-```sh
-mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts --input path/to/snapshot.json
-```
-
-`main.ts` (Node 22, standard library only) writes `board.json`, `data.js`, `dashboard/`,
-`screenshots/` and `dossier.json` to the output directory.
-
-## Entry
-
-Built for the [token-radar-01 bounty](https://make.fun/bounty/token-radar-01) on
-[make.fun](https://make.fun).
+MIT — see `LICENSE`.
