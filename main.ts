@@ -9,8 +9,9 @@
 //   /output/screenshots/  the three screenshots (copied from screenshots/)
 //   /output/dossier.json  the judge's dossier, via vendor/makefun-board.ts
 //
-// Outside the grader, MAKEFUN_OUTPUT_DIR stands in for /output:
-//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts --input <snapshot.json|dir>
+// Outside the grader, MAKEFUN_OUTPUT_DIR stands in for /output and
+// MAKEFUN_INPUT_DIR for /input:
+//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out MAKEFUN_INPUT_DIR=<snapshot dir> node main.ts
 //
 // The program is deterministic: two runs on the same snapshot write the same
 // bytes, and it refuses to write a board the gate would refuse.
@@ -41,7 +42,7 @@ function fail(message: string, code = 1): never {
   process.exit(code);
 }
 
-const inputArg = flag('input', '/input');
+const inputArg = flag('input', process.env.MAKEFUN_INPUT_DIR ?? '/input');
 const inputFile = inputArg.endsWith('.json') ? inputArg : join(inputArg, 'snapshot.json');
 if (!existsSync(inputFile)) fail(`no snapshot at ${inputFile}: pass --input <snapshot.json|directory>`);
 
