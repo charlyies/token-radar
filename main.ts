@@ -117,6 +117,13 @@ writeFileSync(
  * 0600 files in 0700 directories the grader cannot read, and the run would
  * fail after exiting 0. chmod is not cut by the umask, so the modes are set
  * here, after all the writes, as the last step before the program reports.
+ *
+ * Only the CONTENTS are chmodded, never `dir` itself: `dir` is the grader's
+ * /output, owned by root, not by this process (uid 65534), so chmod on it
+ * fails EPERM and kills the run with a non-zero exit (this is what rejected
+ * round 4: the program had already written every output, then died on
+ * chmod('/output')). Everything inside /output is created by this program,
+ * so it owns those files and directories and chmod on them succeeds.
  */
 function sealOutputs(dir: string): void {
   for (const name of readdirSync(dir)) {
@@ -129,7 +136,7 @@ function sealOutputs(dir: string): void {
       chmodSync(path, 0o644);
     }
   }
-  chmodSync(dir, 0o755);
+  // Do NOT chmod(dir): it is the grader's directory, not ours.
 }
 sealOutputs(outDir);
 
