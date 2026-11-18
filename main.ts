@@ -16,7 +16,7 @@
 // The program is deterministic: two runs on the same snapshot write the same
 // bytes, and it refuses to write a board the gate would refuse.
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { boardIssue, buildRadar, dataScript, parseSnapshot } from './lib/model.ts';
@@ -109,6 +109,29 @@ writeFileSync(
   join(outDir, 'dossier.json'),
   buildDossier(outDir, { text_max_bytes: TEXT_MAX_BYTES, screenshots: SCREENSHOT_LIMIT, dashboard: { max_files: 400, max_bytes: 4_194_304 } }),
 );
+
+/**
+ * The grader reads /output as another user, after this program exits: leave
+ * every output readable by anyone, whatever umask the sandbox runs under.
+ * mkdir and write honour the umask, so a restrictive one (077) would leave
+ * 0600 files in 0700 directories the grader cannot read, and the run would
+ * fail after exiting 0. chmod is not cut by the umask, so the modes are set
+ * here, after all the writes, as the last step before the program reports.
+ */
+function sealOutputs(dir: string): void {
+  for (const name of readdirSync(dir)) {
+    const path = join(dir, name);
+    const st = statSync(path);
+    if (st.isDirectory()) {
+      sealOutputs(path);
+      chmodSync(path, 0o755);
+    } else if (st.isFile()) {
+      chmodSync(path, 0o644);
+    }
+  }
+  chmodSync(dir, 0o755);
+}
+sealOutputs(outDir);
 
 process.stdout.write(
   `token radar: ${snapshot.protocols.length} protocols, ${snapshot.watchlist.length} on the watchlist, ${board.length} rows scored (${radar.early_size} early, ${radar.live_size} live set aside)\n` +
